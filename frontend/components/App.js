@@ -5,9 +5,10 @@ import LoginForm from './LoginForm'
 import Message from './Message'
 import ArticleForm from './ArticleForm'
 import Spinner from './Spinner'
-
+import PrivateRoute from './PrivateRoute'
 const articlesUrl = 'http://localhost:9000/api/articles'
 const loginUrl = 'http://localhost:9000/api/login'
+import axios from 'axios'
 
 export default function App() {
   // ✨ MVP can be achieved with these states
@@ -20,56 +21,74 @@ export default function App() {
   const navigate = useNavigate()
   const redirectToLogin = () => { /* ✨ implement */ }
   const redirectToArticles = () => { /* ✨ implement */ }
-
   const logout = () => {
     // ✨ implement
     // If a token is in local storage it should be removed,
     // and a message saying "Goodbye!" should be set in its proper state.
     // In any case, we should redirect the browser back to the login screen,
     // using the helper above.
+    setSpinnerOn(true);
+    if (localStorage.getItem('token')) {
+      localStorage.removeItem('token')
+    }
+    setMessage("Goodbye!")
+    navigate('/')
+    setSpinnerOn(false)
   }
 
-  const login = ({ username, password }) => {
-    // ✨ implement
-    // We should flush the message state, turn on the spinner
-    // and launch a request to the proper endpoint.
-    // On success, we should set the token to local storage in a 'token' key,
-    // put the server success message in its proper state, and redirect
-    // to the Articles screen. Don't forget to turn off the spinner!
-  }
-
-  const getArticles = () => {
-    // ✨ implement
-    // We should flush the message state, turn on the spinner
-    // and launch an authenticated request to the proper endpoint.
-    // On success, we should set the articles in their proper state and
-    // put the server success message in its proper state.
-    // If something goes wrong, check the status of the response:
-    // if it's a 401 the token might have gone bad, and we should redirect to login.
-    // Don't forget to turn off the spinner!
-  }
-
-  const postArticle = article => {
+  async function postArticle (article) {
     // ✨ implement
     // The flow is very similar to the `getArticles` function.
     // You'll know what to do! Use log statements or breakpoints
     // to inspect the response from the server.
+    setSpinnerOn(true)
+    const token = localStorage.getItem('token')
+    return axios.post('http://localhost:9000/api/articles',
+      article,
+      {
+        headers: {
+          'Authorization': `${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      .then((res) => {
+        setArticles([...articles, res.data.article])
+        setMessage(res.data.message)
+        console.log(articles)
+      }).finally(() => {
+        setSpinnerOn(false)
+      })
   }
 
-  const updateArticle = ({ article_id, article }) => {
+  const deleteArticle = (article_id) => {
     // ✨ implement
-    // You got this!
-  }
-
-  const deleteArticle = article_id => {
-    // ✨ implement
+    //is making a second axios call the right way to do this?
+    setSpinnerOn(true)
+    axios.delete(`http://localhost:9000/api/articles/${article_id}`,
+      {
+        headers: {
+          Authorization: localStorage.getItem('token')
+        }
+      })
+      .then((res) => {
+        setMessage(res.data.message)
+      }).catch((err) => {
+        console.error(err)
+      }).finally(() => {
+        axios.get('http://localhost:9000/api/articles', { headers: { Authorization: localStorage.getItem('token') } })
+          .then((res) => {
+          setArticles([...res.data.articles])
+          }).finally(() => {
+          setSpinnerOn(false)
+        })
+    })
   }
 
   return (
     // ✨ fix the JSX: `Spinner`, `Message`, `LoginForm`, `ArticleForm` and `Articles` expect props ❗
     <>
-      <Spinner />
-      <Message />
+      <Spinner on={spinnerOn} />
+      <Message message={message} />
       <button id="logout" onClick={logout}>Logout from app</button>
       <div id="wrapper" style={{ opacity: spinnerOn ? "0.25" : "1" }}> {/* <-- do not change this line */}
         <h1>Advanced Web Applications</h1>
@@ -78,12 +97,26 @@ export default function App() {
           <NavLink id="articlesScreen" to="/articles">Articles</NavLink>
         </nav>
         <Routes>
-          <Route path="/" element={<LoginForm />} />
-          <Route path="articles" element={
-            <>
-              <ArticleForm />
-              <Articles />
-            </>
+          <Route path="/" element={<LoginForm setMessage={setMessage} setSpinnerOn={setSpinnerOn} />} />
+          <Route path="/articles" element={
+            <PrivateRoute>
+              <ArticleForm
+                postArticle={postArticle}
+                currentArticle={currentArticleId}
+                articles={articles}
+                setCurrentArticleId={setCurrentArticleId}
+                setArticles={setArticles}
+                setMessage={setMessage}
+                setSpinnerOn={setSpinnerOn}
+              />
+              <Articles
+                deleteArticle={deleteArticle}
+                setCurrentArticleId={setCurrentArticleId}
+                setArticles={setArticles}
+                setMessage={setMessage}
+                articles={articles}
+              />
+            </PrivateRoute>
           } />
         </Routes>
         <footer>Bloom Institute of Technology 2022</footer>

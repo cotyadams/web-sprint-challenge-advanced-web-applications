@@ -1,16 +1,36 @@
-import React, { useEffect } from 'react'
-import { Navigate } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import PT from 'prop-types'
-
+import axios from 'axios'
+import axiosWithAuth from '../axios'
 export default function Articles(props) {
   // ✨ where are my props? Destructure them here
-
   // ✨ implement conditional logic: if no token exists
   // we should render a Navigate to login screen (React Router v.6)
-
+  const navigate = useNavigate();
+  if (!localStorage.getItem('token')) {
+   navigate('/')
+  }
   useEffect(() => {
     // ✨ grab the articles here, on first render only
-  })
+    axios.get('http://localhost:9000/api/articles', {
+      headers: {
+        'Authorization': `${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    }
+    )
+      .then((res) => {
+        props.setArticles(res.data.articles);
+        props.setMessage(res.data.message)
+
+      }).catch((err) => {
+        console.error(err)
+      })
+  }, [])
+  const editArticle = (articleID) => {
+    props.setCurrentArticleId(articleID)
+  }
 
   return (
     // ✨ fix the JSX: replace `Function.prototype` with actual functions
@@ -18,9 +38,9 @@ export default function Articles(props) {
     <div className="articles">
       <h2>Articles</h2>
       {
-        ![].length
+        !props.articles.length
           ? 'No articles yet'
-          : [].map(art => {
+          : props.articles.map(art => {
             return (
               <div className="article" key={art.article_id}>
                 <div>
@@ -29,8 +49,14 @@ export default function Articles(props) {
                   <p>Topic: {art.topic}</p>
                 </div>
                 <div>
-                  <button disabled={true} onClick={Function.prototype}>Edit</button>
-                  <button disabled={true} onClick={Function.prototype}>Delete</button>
+                  <button
+                    disabled={false}
+                    onClick={() => editArticle(art.article_id)}
+                  >Edit</button>
+                  <button
+                    disabled={false}
+                    onClick={() => props.deleteArticle(art.article_id)}
+                  >Delete</button>
                 </div>
               </div>
             )
@@ -40,16 +66,3 @@ export default function Articles(props) {
   )
 }
 
-// 🔥 No touchy: Articles expects the following props exactly:
-Articles.propTypes = {
-  articles: PT.arrayOf(PT.shape({ // the array can be empty
-    article_id: PT.number.isRequired,
-    title: PT.string.isRequired,
-    text: PT.string.isRequired,
-    topic: PT.string.isRequired,
-  })).isRequired,
-  getArticles: PT.func.isRequired,
-  deleteArticle: PT.func.isRequired,
-  setCurrentArticleId: PT.func.isRequired,
-  currentArticleId: PT.number, // can be undefined or null
-}
